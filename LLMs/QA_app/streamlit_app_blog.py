@@ -6,8 +6,6 @@ import time
 import shutil
 from constants import *
 
-
-
 # Streamlit app code
 st.set_page_config(
     page_title='Q&A Bot for PDF',
@@ -16,9 +14,8 @@ st.set_page_config(
     initial_sidebar_state='auto',
 )
 
-
 if "pdf_qa_model" not in st.session_state:
-    st.session_state["pdf_qa_model"]:PdfQA = PdfQA() ## Intialisation
+    st.session_state["pdf_qa_model"]:PdfQA = PdfQA() ## Initialisation
 
 ## To cache resource across multiple session 
 @st.cache_resource
@@ -51,23 +48,22 @@ def load_emb(emb):
     else:
         raise ValueError("Invalid embedding setting")
 
-
-
 st.title("PDF Q&A (Self hosted LLMs)")
 
 with st.sidebar:
+    txt_ext = st.radio("**Select Text Extraction**", [TEXTEXT_DEFAULT, TEXTEXT_EXTENDED], index=1)
     emb = st.radio("**Select Embedding Model**", [EMB_INSTRUCTOR_XL, EMB_SBERT_MPNET_BASE,EMB_SBERT_MINILM],index=1)
     llm = st.radio("**Select LLM Model**", [LLM_FASTCHAT_T5_XL, LLM_FLAN_T5_SMALL,LLM_FLAN_T5_BASE,LLM_FLAN_T5_LARGE,LLM_FLAN_T5_XL,LLM_FALCON_SMALL],index=2)
     load_in_8bit = st.radio("**Load 8 bit**", [True, False],index=1)
     pdf_file = st.file_uploader("**Upload PDF**", type="pdf")
 
-    
     if st.button("Submit") and pdf_file is not None:
         with st.spinner(text="Uploading PDF and Generating Embeddings.."):
             with NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
                 shutil.copyfileobj(pdf_file, tmp)
                 tmp_path = Path(tmp.name)
                 st.session_state["pdf_qa_model"].config = {
+                    "text_ext": txt_ext,
                     "pdf_path": str(tmp_path),
                     "embedding": emb,
                     "llm": llm,

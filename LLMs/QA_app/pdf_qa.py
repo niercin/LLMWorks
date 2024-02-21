@@ -1,4 +1,6 @@
 from langchain.document_loaders import PDFPlumberLoader
+from langchain.document_loaders import TextLoader
+from langchain.document_loaders import DirectoryLoader
 from langchain.text_splitter import CharacterTextSplitter, TokenTextSplitter
 from transformers import pipeline
 from langchain.prompts import PromptTemplate
@@ -14,6 +16,11 @@ from transformers import AutoTokenizer
 import torch
 import os
 import re
+import glob
+
+import sys
+sys.path.insert(1, '../../../t.ext2.tractor')
+from pageextractor import process_pdf_file
 
 class PdfQA:
     def __init__(self,config:dict = {}):
@@ -169,7 +176,8 @@ class PdfQA:
                 self.llm = PdfQA.create_falcon_instruct_small(load_in_8bit=load_in_8bit)
         
         else:
-            raise ValueError("Invalid config")        
+            raise ValueError("Invalid config")
+            
     def vector_db_pdf(self) -> None:
         """
         creates vector db for the embeddings and persists them or loads a vector db from the persist directory
@@ -180,19 +188,29 @@ class PdfQA:
             ## Load from the persist db
             self.vectordb = Chroma(persist_directory=persist_directory, embedding_function=self.embedding)
         elif pdf_path and os.path.exists(pdf_path):
-            ## 1. Extract the documents
-            loader = PDFPlumberLoader(pdf_path)
-            documents = loader.load()
-            ## 2. Split the texts
-            text_splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=0)
-            texts = text_splitter.split_documents(documents)
-            # text_splitter = TokenTextSplitter(chunk_size=100, chunk_overlap=10, encoding_name="cl100k_base")  # This the encoding for text-embedding-ada-002
-            text_splitter = TokenTextSplitter(chunk_size=100, chunk_overlap=10)  # This the encoding for text-embedding-ada-002
-            texts = text_splitter.split_documents(texts)
-
-            ## 3. Create Embeddings and add to chroma store
-            ##TODO: Validate if self.embedding is not None
-            self.vectordb = Chroma.from_documents(documents=texts, embedding=self.embedding, persist_directory=persist_directory)
+            text_extraction_method = self.config.get("text_ext", None)
+            if text_extraction_method == TEXTEXT_DEFAULT:
+                ## 1. Extract the documents
+                loader = PDFPlumberLoader(pdf_path)
+                documents = loader.load()
+                ## 2. Split the texts
+                text_splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=0)
+                texts = text_splitter.split_documents(documents)
+                # text_splitter = TokenTextSplitter(chunk_size=100, chunk_overlap=10, encoding_name="cl100k_base")  # This the encoding for text-embedding-ada-002
+                text_splitter = TokenTextSplitter(chunk_size=100, chunk_overlap=10)  # This the encoding for text-embedding-ada-002
+                texts = text_splitter.split_documents(texts)
+                ## 3. Create Embeddings and add to chroma store
+                ##TODO: Validate if self.embedding is not None
+                self.vectordb = Chroma.from_documents(documents=texts, embedding=self.embedding, persist_directory=persist_directory)
+            elif text_extraction_method == TEXTEXT_EXTENDED:
+                print('Processing: ' + pdf_path)
+                out_dir = process_pdf_file(pdf_path)
+                print('Text files are created in: ' + str(out_dir))
+                loader = DirectoryLoader(str(out_dir), glob="**/page_*.txt", use_multithreading=True, loader_cls=TextLoader)
+                texts = loader.load()
+                self.vectordb = Chroma.from_documents(documents=texts, embedding=self.embedding, persist_directory=persist_directory)
+            else:
+                raise ValueError("Unknown Text Extraction Method")
         else:
             raise ValueError("NO PDF found")
 
