@@ -13,7 +13,7 @@ fi
 source "$VENV_NAME/bin/activate"
 # export PATH="/root/.local/bin:$PATH"
 pip freeze
-pip install -r requirements.txt --ignore-installed
+pip install -r requirements.txt --ignore-installed --break-system-packages
 pip freeze
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 export STREAMLIT_RUNONSSAVE=True
