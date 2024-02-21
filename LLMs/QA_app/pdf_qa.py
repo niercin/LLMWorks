@@ -16,7 +16,6 @@ from transformers import AutoTokenizer
 import torch
 import os
 import re
-import glob
 
 import sys
 sys.path.insert(1, '../../../t.ext2.tractor')
